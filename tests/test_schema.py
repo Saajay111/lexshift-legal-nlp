@@ -21,9 +21,30 @@ def test_valid_annotation_frame_has_no_errors() -> None:
 
 
 def test_missing_required_column_is_reported() -> None:
-    frame = valid_frame().drop(columns=["passage_id"])
+    frame = valid_frame().drop(columns=["annotator_id"])
     errors = validate_annotation_frame(frame)
-    assert any("passage_id" in error for error in errors)
+    assert any("annotator_id" in error for error in errors)
+
+
+def test_absence_label_does_not_require_passage_id() -> None:
+    frame = valid_frame()
+    frame.loc[0, "presence"] = False
+    frame.loc[0, "passage_id"] = None
+    assert validate_annotation_frame(frame) == []
+
+
+def test_positive_label_requires_passage_id() -> None:
+    frame = valid_frame()
+    frame.loc[0, "passage_id"] = None
+    errors = validate_annotation_frame(frame)
+    assert any("Positive annotations must include a passage_id" in error for error in errors)
+
+
+def test_negative_label_cannot_have_passage_id() -> None:
+    frame = valid_frame()
+    frame.loc[0, "presence"] = False
+    errors = validate_annotation_frame(frame)
+    assert any("Negative annotations must not include a passage_id" in error for error in errors)
 
 
 def test_unexpected_category_is_reported() -> None:
