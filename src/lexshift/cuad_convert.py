@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import ast
 import json
-import re
 from pathlib import Path
 from typing import Any
 
@@ -23,7 +22,7 @@ CATEGORY_MAP = {
 OUTPUT_COLUMNS = [
     "contract_id", "source_domain", "source_reference", "document_date",
     "industry", "clause_category", "presence", "passage_id", "passage_text",
-    "start_char", "end_char", "annotator_id", "confidence", "needs_review",
+    "annotator_id", "confidence", "needs_review",
     "adjudication_status", "annotation_version", "source_answer", "notes",
 ]
 
@@ -117,8 +116,6 @@ def convert_cuad_frame(frame: pd.DataFrame) -> pd.DataFrame:
                         "presence": True,
                         "passage_id": f"cuad:{category}:{index:03d}",
                         "passage_text": passage,
-                        "start_char": None,
-                        "end_char": None,
                     })
             else:
                 records.append({
@@ -126,8 +123,6 @@ def convert_cuad_frame(frame: pd.DataFrame) -> pd.DataFrame:
                     "presence": False,
                     "passage_id": None,
                     "passage_text": None,
-                    "start_char": None,
-                    "end_char": None,
                 })
     return pd.DataFrame.from_records(records, columns=OUTPUT_COLUMNS)
 
