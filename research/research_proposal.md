@@ -1,38 +1,45 @@
 # Research Proposal
 
 ## Working title
-**Does a CUAD-trained clause detector survive newer contracts? A distribution-shift test for contract review.**
+**Does a CUAD-trained clause detector generalize to later SEC-filed contracts? A cross-temporal evaluation of legal clause extraction.**
 
-## Abstract
-This project proposes an empirical evaluation of legal contract clause-extraction systems under temporal and domain shift. Systems developed using CUAD will be evaluated on held-out source-domain contracts and a separately sampled set of more recent SEC-filed material contracts. The study will compare transparent lexical rules, a classical text classifier, and a compact transformer, then investigate whether errors vary by clause category or observable document characteristics. The abstract will be rewritten after the study is completed; it currently describes the planned design, not findings.
+## Abstract (proposal-stage)
+This study will evaluate whether legal clause-extraction systems trained on the Contract Understanding Atticus Dataset (CUAD) generalize to a separately sampled set of later SEC-filed material contracts. It will compare transparent lexical rules, a classical text classifier, and a compact transformer on five CUAD-aligned clause categories. The study will examine category-level performance differences and characterize errors by pre-defined drafting features. This is a proposed design, not a report of completed experiments.
 
 ## Motivation
-Legal documents are not static. Contract language, formatting, transaction practices, and industry conventions can change across time and document populations. A model's score on a benchmark therefore does not, by itself, establish reliable performance on later contracts. This study tests generalization empirically and documents the conditions under which results should be interpreted.
+A benchmark score on one contract collection does not establish that a model will work equally well on later documents. Differences in drafting conventions, contract populations, document structure, and time may affect extraction performance. The project will measure these differences rather than assume that a performance drop exists.
 
 ## Primary research question
-How does clause-detection performance change between held-out CUAD contracts and a separately sampled set of newer SEC-filed material contracts?
+How does clause-detection performance on a locked sample of later SEC-filed material contracts compare with performance on held-out CUAD contracts?
 
 ## Secondary questions
-1. Does the performance difference vary across clause categories?
-2. Are errors associated with contract year or broad industry group?
-3. Which observable drafting characteristics are associated with false positives and false negatives?
-4. How do lexical, classical ML, and transformer approaches compare under the same evaluation protocol?
+1. Does the source-to-target difference vary by clause category?
+2. Are false positives and false negatives associated with pre-defined drafting characteristics?
+3. Are observed differences associated with filing year or broad issuer industry?
+4. How do lexical, classical ML, and transformer systems compare under a consistent evaluation protocol?
 
-## Provisional categories
-Governing law, termination, limitation of liability, non-compete, and anti-assignment. This list is not final. Verify the exact CUAD schema, label definitions, class support, and target-domain applicability before committing to the categories.
+## CUAD-aligned provisional categories
+The initial category set is:
+- Governing Law
+- Non-Compete
+- Anti-Assignment
+- Termination for Convenience
+- Cap on Liability
 
-## Proposed contribution
-A reproducible, contract-level evaluation protocol for studying temporal and industry generalization in legal clause extraction, accompanied by a carefully documented annotation sample and an analysis of model errors.
+These names align with CUAD's published category list. Do not silently broaden them to generic "termination" or "limitation of liability." In particular, CUAD separately labels "Uncapped Liability"; it is not interchangeable with "Cap on Liability." Category inclusion remains conditional on a pilot confirming usable label support and reliable target-domain annotation.
 
-## Feasibility
-A starting estimate of approximately 40 target contracts and several hundred annotated passages is a planning hypothesis, not a statistical justification. A pilot must establish extraction feasibility, category prevalence, annotation time, and whether the intended comparisons are supportable. Revise the sample plan before the main study.
+## Proposed contribution and novelty boundary
+The project will contribute a transparent cross-temporal evaluation protocol and a manually reviewed target-domain sample. Existing work already includes CUAD, LEDGAR, contract transfer experiments, and recent LLM evaluations on CUAD. Therefore, the project will not claim to be the first study of legal contract transfer or the first evaluation of CUAD models. The narrower potential contribution is a carefully controlled, later-filing-period evaluation using CUAD-aligned categories, contract-level leakage controls, and documented error analysis. A formal novelty claim requires a completed literature review.
+
+## Feasibility and sampling
+An initial pilot of approximately 15–20 eligible target contracts is recommended before fixing the final sample size. A prior estimate of 40 contracts is a feasibility placeholder, not a statistically justified sample size. The final target sample should be set after measuring category prevalence, annotation time, extraction quality, and the precision achievable for primary estimates.
 
 ## Deliverables
-- Dataset and source-provenance documentation
-- Versioned annotation schema and guidelines
-- Reproducible preprocessing and model-evaluation code
-- Metrics with support counts and uncertainty intervals
-- Error-analysis tables and a research manuscript
+- Dataset and source-provenance audit
+- Versioned annotation protocol and schema
+- Reproducible preprocessing and model evaluation code
+- Per-category metrics with support counts and uncertainty intervals
+- Error analysis and a research manuscript
 
 ## Integrity statement
-No result, benchmark comparison, novelty claim, or practical legal-performance claim will be stated as established until supported by completed experiments and a documented literature review.
+No model result, novelty claim, or practical legal-performance claim will be presented as established until supported by completed experiments and documented sources.
