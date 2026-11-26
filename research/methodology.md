@@ -6,7 +6,7 @@ A cross-temporal domain-generalization evaluation using CUAD as the source bench
 ## 2. Dataset verification
 CUAD v1 is described by The Atticus Project as 510 commercial contracts, more than 13,000 expert annotations, and 41 clause categories. The Hugging Face dataset card identifies the dataset license as CC BY 4.0. Record the exact release/version and consult the original paper, dataset card, category list, and repository before use.
 
-Verify the exact label names and annotation structure. The selected categories are Governing Law, Non-Compete, Anti-Assignment, Termination for Convenience, and Cap on Liability. CUAD separately includes Uncapped Liability; do not merge it with Cap on Liability. Confirm support counts and annotation semantics directly from the selected CUAD release.
+Verify the exact label names and annotation structure. The selected categories are Governing Law, Non-Compete, Anti-Assignment, Termination for Convenience, and Cap on Liability. CUAD separately includes Uncapped Liability; do not merge it with Cap on Liability. Confirm support counts and annotation semantics directly from the selected CUAD release. CUAD's 41 labels do not all have the same answer format: Governing Law is an extracted jurisdiction value, while several selected categories use Yes/No answers. For the primary detector task, define presence consistently from the existence of a valid annotated evidence context, and evaluate passage retrieval separately. Do not treat a jurisdiction string as if it were a Yes/No source label. Any normalized jurisdiction extraction should be a separately specified secondary task.
 
 Use contract-level source data as the unit for splitting. Do not assume that row-level or paragraph-level splits in a convenient data export are safe for this research question.
 
@@ -26,7 +26,7 @@ Start with a 15–20 contract pilot. The earlier 40-contract target is provision
 SEC fair-access guidance currently states a maximum of 10 requests per second and asks automated users to declare a descriptive User-Agent and make efficient requests. Use a much lower request rate, retrieve only necessary filings, and comply with current SEC guidance.
 
 ## 4. Annotation protocol
-Use a document-category presence label plus evidence passage(s). Define how multi-paragraph provisions, exceptions, headings, and cross-references are handled. Store offsets against a versioned normalized text. Preserve the original extracted text separately from normalized model input.
+Use a document-category presence label plus evidence passage(s). For positive labels, store one row per evidence passage; for negative labels, store one row with no passage ID or offsets. Define how multi-paragraph provisions, exceptions, headings, and cross-references are handled. Store offsets against a versioned normalized text. Preserve the original extracted text separately from normalized model input.
 
 Use a second annotator on a subset if feasible. Report raw agreement and an agreement statistic appropriate to the label design. Cohen's kappa is not automatically appropriate for every multi-label/span setup; explain the selected statistic and prevalence limitations. Retain original and adjudicated labels separately.
 
