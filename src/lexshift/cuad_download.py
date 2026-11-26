@@ -41,14 +41,24 @@ def download_cuad_text(output_dir: str | Path) -> dict[str, Any]:
         local_dir=str(destination),
     ))
 
-    candidates = [
-        path for path in snapshot_path.rglob(TEXT_FOLDER_NAME) if path.is_dir()
-    ]
-    if len(candidates) != 1:
-        raise ValueError(
-            f"Expected one {TEXT_FOLDER_NAME} directory, found {len(candidates)}."
-        )
-    text_dir = candidates[0]
+    # Hugging Face local_dir may also create cache/metadata directories that
+    # contain a second path with the same folder name. Prefer the documented
+    # dataset path and ignore internal cache paths when using the fallback.
+    expected_text_dir = snapshot_path / "CUAD_v1" / TEXT_FOLDER_NAME
+    if expected_text_dir.is_dir():
+        text_dir = expected_text_dir
+    else:
+        candidates = [
+            path
+            for path in snapshot_path.rglob(TEXT_FOLDER_NAME)
+            if path.is_dir() and ".cache" not in path.parts
+        ]
+        if len(candidates) != 1:
+            raise ValueError(
+                f"Expected one non-cache {TEXT_FOLDER_NAME} directory, "
+                f"found {len(candidates)}."
+            )
+        text_dir = candidates[0]
     files = sorted(text_dir.rglob("*.txt"))
     if len(files) != EXPECTED_CONTRACTS:
         raise ValueError(
