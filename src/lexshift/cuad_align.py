@@ -144,6 +144,7 @@ def align_cuad_annotations(
             "contract_id": contract_id,
             "source_reference": ";".join(refs),
             "candidate_file_count": 0,
+            "distinct_content_count": 0,
             "selected_text_path": None,
             "candidate_match_scores": None,
         }
@@ -175,24 +176,39 @@ def align_cuad_annotations(
             ].dropna().astype(str).tolist()
             if value.strip()
         ]
-        candidate_results: list[tuple[Path, str, int]] = []
-        score_details: dict[str, int] = {}
+        # Collapse byte/text-equivalent mirrors before scoring. Newline convention
+        # differences are ignored for identity, but the selected source text and
+        # its offsets are preserved exactly as decoded from that file.
+        content_groups: dict[str, list[tuple[Path, str]]] = {}
         for candidate in candidates:
             candidate_text = _read_text(candidate)
+            identity_text = candidate_text.replace("\\r\\n", "\\n").replace("\\r", "\\n")
+            content_groups.setdefault(_sha256(identity_text), []).append(
+                (candidate, candidate_text)
+            )
+
+        candidate_results: list[tuple[Path, str, int]] = []
+        score_details: dict[str, int] = {}
+        for equivalent_paths in content_groups.values():
+            representative_path, representative_text = equivalent_paths[0]
             score = sum(
-                align_passage(candidate_text, passage)["status"]
+                align_passage(representative_text, passage)["status"]
                 in {
                     "unique_whitespace_normalized_match",
                     "unique_casefolded_whitespace_match",
                 }
                 for passage in positive_passages
             )
-            candidate_results.append((candidate, candidate_text, score))
-            score_details[str(candidate.relative_to(text_root))] = int(score)
+            candidate_results.append((representative_path, representative_text, score))
+            for candidate, _candidate_text in equivalent_paths:
+                score_details[str(candidate.relative_to(text_root))] = int(score)
 
         selected: tuple[Path, str, int] | None = None
-        selection_reason = "single_candidate"
-        if len(candidate_results) == 1:
+        if len(candidates) == 1:
+            selection_reason = "single_candidate"
+            selected = candidate_results[0]
+        elif len(candidate_results) == 1:
+            selection_reason = "identical_content_duplicates_collapsed"
             selected = candidate_results[0]
         else:
             best_score = max(item[2] for item in candidate_results)
@@ -201,13 +217,14 @@ def align_cuad_annotations(
                 selected = best[0]
                 selection_reason = "unique_highest_annotation_match_count"
             else:
-                selection_reason = "unresolved_duplicate_candidates"
+                selection_reason = "unresolved_distinct_content_candidates"
 
         if selected is None:
             contract_rows.append({
                 **base_manifest,
                 "source_reference": source_reference,
                 "candidate_file_count": len(candidates),
+                "distinct_content_count": len(content_groups),
                 "candidate_match_scores": json.dumps(score_details, sort_keys=True),
                 "selection_reason": selection_reason,
                 "status": "ambiguous_full_text_filename",
@@ -222,6 +239,7 @@ def align_cuad_annotations(
             **base_manifest,
             "source_reference": source_reference,
             "candidate_file_count": len(candidates),
+            "distinct_content_count": len(content_groups),
             "selected_text_path": str(selected_path.relative_to(text_root)),
             "candidate_match_scores": json.dumps(score_details, sort_keys=True),
             "selection_reason": selection_reason,
