@@ -16,10 +16,10 @@ REQUIRED_ANNOTATION_COLUMNS = {
 }
 ALLOWED_CATEGORIES = {
     "governing_law",
-    "termination",
-    "limitation_of_liability",
     "non_compete",
     "anti_assignment",
+    "termination_for_convenience",
+    "cap_on_liability",
 }
 
 
