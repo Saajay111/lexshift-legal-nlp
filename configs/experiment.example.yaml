@@ -1,0 +1,41 @@
+project:
+  name: LEXSHIFT
+  protocol_version: "0.1-draft"
+  random_seed: 42
+
+data:
+  source_domain: CUAD
+  target_domain: SEC
+  text_normalization_version: "not-yet-defined"
+  split_unit: contract
+  target_test_locked: false
+
+task:
+  unit: passage
+  clause_categories:
+    - governing_law
+    - termination
+    - limitation_of_liability
+    - non_compete
+    - anti_assignment
+
+evaluation:
+  primary_metrics:
+    - precision
+    - recall
+    - f1
+  uncertainty:
+    method: contract_level_bootstrap
+    replicates: 2000
+
+models:
+  lexical_baseline:
+    enabled: true
+  tfidf_logistic_regression:
+    enabled: true
+  transformer:
+    enabled: false
+    note: Enable after dataset and split protocol are verified.
+  llm_comparator:
+    enabled: false
+    note: Optional; requires a fixed versioned protocol and privacy review.
