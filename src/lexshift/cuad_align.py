@@ -103,19 +103,8 @@ def align_passage(full_text: str, passage_text: str) -> dict[str, Any]:
 
 
 def _canonical_text_files(text_root: Path) -> tuple[list[Path], str]:
-    """Prefer the complete category-organized CUAD set over flat mirror copies."""
-    all_files = sorted(text_root.rglob("*.txt"))
-    organized = [
-        path for path in all_files
-        if len(path.relative_to(text_root).parts) > 2
-    ]
-    names = [path.name.casefold() for path in organized]
-    if (
-        len(organized) == CANONICAL_CONTRACT_COUNT
-        and len(names) == len(set(names))
-    ):
-        return organized, "complete_category_organized_collection"
-    return all_files, "all_available_txt_files"
+    """Return all TXT candidates so annotation evidence can resolve mirror copies."""
+    return sorted(text_root.rglob("*.txt")), "all_available_txt_files_scored_by_annotation_evidence"
 
 
 def _sha256(text: str) -> str:
@@ -151,34 +140,92 @@ def align_cuad_annotations(
     text_cache: dict[str, str] = {}
     for contract_id, group in annotations.groupby("contract_id", sort=True):
         refs = group["source_reference"].dropna().astype(str).unique()
+        base_manifest = {
+            "contract_id": contract_id,
+            "source_reference": ";".join(refs),
+            "candidate_file_count": 0,
+            "selected_text_path": None,
+            "candidate_match_scores": None,
+        }
         if len(refs) != 1:
             contract_rows.append({
-                "contract_id": contract_id, "source_reference": ";".join(refs),
+                **base_manifest,
                 "status": "missing_or_conflicting_source_reference",
-                "full_text_characters": None, "full_text_sha256": None,
+                "full_text_characters": None,
+                "full_text_sha256": None,
             })
             continue
+
         source_reference = refs[0]
         stem = Path(source_reference).stem.casefold()
         candidates = txt_index.get(stem, [])
-        if len(candidates) == 0:
+        if not candidates:
             contract_rows.append({
-                "contract_id": contract_id, "source_reference": source_reference,
-                "status": "full_text_not_found", "full_text_characters": None,
+                **base_manifest,
+                "source_reference": source_reference,
+                "status": "full_text_not_found",
+                "full_text_characters": None,
                 "full_text_sha256": None,
             })
             continue
-        if len(candidates) > 1:
+
+        positive_passages = [
+            value for value in group.loc[
+                group["presence"].astype(bool), "passage_text"
+            ].dropna().astype(str).tolist()
+            if value.strip()
+        ]
+        candidate_results: list[tuple[Path, str, int]] = []
+        score_details: dict[str, int] = {}
+        for candidate in candidates:
+            candidate_text = _read_text(candidate)
+            score = sum(
+                align_passage(candidate_text, passage)["status"]
+                in {
+                    "unique_whitespace_normalized_match",
+                    "unique_casefolded_whitespace_match",
+                }
+                for passage in positive_passages
+            )
+            candidate_results.append((candidate, candidate_text, score))
+            score_details[str(candidate.relative_to(text_root))] = int(score)
+
+        selected: tuple[Path, str, int] | None = None
+        selection_reason = "single_candidate"
+        if len(candidate_results) == 1:
+            selected = candidate_results[0]
+        else:
+            best_score = max(item[2] for item in candidate_results)
+            best = [item for item in candidate_results if item[2] == best_score]
+            if best_score > 0 and len(best) == 1:
+                selected = best[0]
+                selection_reason = "unique_highest_annotation_match_count"
+            else:
+                selection_reason = "unresolved_duplicate_candidates"
+
+        if selected is None:
             contract_rows.append({
-                "contract_id": contract_id, "source_reference": source_reference,
-                "status": "ambiguous_full_text_filename", "full_text_characters": None,
+                **base_manifest,
+                "source_reference": source_reference,
+                "candidate_file_count": len(candidates),
+                "candidate_match_scores": json.dumps(score_details, sort_keys=True),
+                "selection_reason": selection_reason,
+                "status": "ambiguous_full_text_filename",
+                "full_text_characters": None,
                 "full_text_sha256": None,
             })
             continue
-        full_text = _read_text(candidates[0])
+
+        selected_path, full_text, selected_score = selected
         text_cache[str(contract_id)] = full_text
         contract_rows.append({
-            "contract_id": contract_id, "source_reference": source_reference,
+            **base_manifest,
+            "source_reference": source_reference,
+            "candidate_file_count": len(candidates),
+            "selected_text_path": str(selected_path.relative_to(text_root)),
+            "candidate_match_scores": json.dumps(score_details, sort_keys=True),
+            "selection_reason": selection_reason,
+            "selected_candidate_match_count": int(selected_score),
             "status": "matched_full_text",
             "full_text_characters": len(full_text),
             "full_text_sha256": _sha256(full_text),
