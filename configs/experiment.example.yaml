@@ -1,23 +1,25 @@
 project:
   name: LEXSHIFT
-  protocol_version: "0.1-draft"
+  protocol_version: "0.2-draft"
   random_seed: 42
 
 data:
-  source_domain: CUAD
-  target_domain: SEC
+  source_domain: CUAD_v1
+  target_domain: SEC_EDGAR
+  target_filing_date_cutoff: "TO_BE_PRE_REGISTERED"
   text_normalization_version: "not-yet-defined"
   split_unit: contract
   target_test_locked: false
 
 task:
-  unit: passage
+  presence_classification: true
+  passage_retrieval: true
   clause_categories:
     - governing_law
-    - termination
-    - limitation_of_liability
     - non_compete
     - anti_assignment
+    - termination_for_convenience
+    - cap_on_liability
 
 evaluation:
   primary_metrics:
@@ -35,7 +37,7 @@ models:
     enabled: true
   transformer:
     enabled: false
-    note: Enable after dataset and split protocol are verified.
+    note: Enable after data and split protocol are verified.
   llm_comparator:
     enabled: false
     note: Optional; requires a fixed versioned protocol and privacy review.
