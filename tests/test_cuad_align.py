@@ -20,7 +20,7 @@ def test_unique_match_is_case_insensitive_and_preserves_source_offsets():
     text = "Intro\\nIN NO EVENT shall COMPANY be liable.\\nEnd"
     passage = "in no event SHALL company be liable."
     result = align_passage(text, passage)
-    assert result["status"] == "unique_whitespace_normalized_match"
+    assert result["status"] == "unique_casefolded_whitespace_match"
     assert text[result["start_char"]:result["end_char"]] == (
         "IN NO EVENT shall COMPANY be liable."
     )
@@ -30,7 +30,7 @@ def test_casefold_expansion_maps_offsets_to_original_character():
     text = "Intro STRASSE clause. End"
     passage = "Straße clause."
     result = align_passage(text, passage)
-    assert result["status"] == "unique_whitespace_normalized_match"
+    assert result["status"] == "unique_casefolded_whitespace_match"
     assert text[result["start_char"]:result["end_char"]] == "STRASSE clause."
 
 def test_exact_unique_match_takes_priority_over_casefold_duplicates():
