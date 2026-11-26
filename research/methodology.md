@@ -1,53 +1,59 @@
 # Methodology
 
 ## 1. Design overview
-A domain-generalization evaluation with CUAD as the source domain and a temporally later SEC-filed contract sample as the target domain. The target test set must be separated from model development and locked before tuning.
+A cross-temporal domain-generalization evaluation using CUAD as the source benchmark and a separately sampled, later SEC-filed contract collection as the target set. The target set must be locked before model tuning. Because CUAD and the target sample may differ in contract type, issuer, and collection process, describe the study as a cross-temporal/domain-shift evaluation rather than a causal test of time alone.
 
-## 2. Dataset and license verification
-Before data collection:
-1. Read the current CUAD paper, dataset card, schema, and license.
-2. Confirm exact target labels, annotation conventions, and available positive/negative support.
-3. Record dataset version, source URL, retrieval date, license, and checksums where appropriate.
-4. Review SEC EDGAR access guidance and the provenance of each selected exhibit.
-5. Define the target date window, filing types, and reproducible exhibit-selection rules.
-6. Document whether full text may be stored, transformed, or redistributed.
+## 2. Dataset verification
+CUAD v1 is described by The Atticus Project as 510 commercial contracts, more than 13,000 expert annotations, and 41 clause categories. The Hugging Face dataset card identifies the dataset license as CC BY 4.0. Record the exact release/version and consult the original paper, dataset card, category list, and repository before use.
 
-Do not assume that a dataset's license permits every form of redistribution or that the source and target annotation definitions are equivalent.
+Verify the exact label names and annotation structure. The selected categories are Governing Law, Non-Compete, Anti-Assignment, Termination for Convenience, and Cap on Liability. CUAD separately includes Uncapped Liability; do not merge it with Cap on Liability. Confirm support counts and annotation semantics directly from the selected CUAD release.
 
-## 3. Sampling frame
-Create a complete sampling frame of eligible SEC-filed material contracts before selecting the evaluation sample. Specify filing/exhibit types, date window, inclusion/exclusion criteria, duplicate handling, amendment handling, and broad industry coding. Do not select documents based on whether the target clause is easy to locate.
+Use contract-level source data as the unit for splitting. Do not assume that row-level or paragraph-level splits in a convenient data export are safe for this research question.
 
-A target of roughly 40 contracts is only an initial feasibility estimate. Conduct a pilot and revise based on prevalence, annotation cost, and precision of the intended comparisons. Keep a private provenance manifest; use stable project IDs in analysis outputs.
+## 3. Target sampling frame
+Build a reproducible sampling frame from SEC EDGAR material-contract exhibits (typically Exhibit 10-series, with eligibility rules documented). Define:
+- filing-date window and rationale;
+- eligible filing forms and exhibit types;
+- contract-type inclusion/exclusion criteria;
+- how amendments, restatements, duplicate filings, and multiple exhibits are handled;
+- how issuer industry is assigned;
+- how CUAD contracts and close duplicates are screened out.
+
+Use the SEC filing date as the temporal index unless a different date is justified. A contract's execution/effective date is not interchangeable with the filing date. Record both when available.
+
+Start with a 15–20 contract pilot. The earlier 40-contract target is provisional and must not be treated as statistically powered. Determine the final sample after reviewing clause prevalence, extraction quality, annotation time, and the desired precision of primary estimates. Sample without looking at model predictions or selecting documents because a target clause is easy to find.
+
+SEC fair-access guidance currently states a maximum of 10 requests per second and asks automated users to declare a descriptive User-Agent and make efficient requests. Use a much lower request rate, retrieve only necessary filings, and comply with current SEC guidance.
 
 ## 4. Annotation protocol
-Define whether the unit is a clause span, passage, or document-category pair. Specify how multi-paragraph provisions, exceptions, headings, and cross-references are handled. Record stable passage IDs and offsets against a versioned text-normalization procedure.
+Use a document-category presence label plus evidence passage(s). Define how multi-paragraph provisions, exceptions, headings, and cross-references are handled. Store offsets against a versioned normalized text. Preserve the original extracted text separately from normalized model input.
 
-Use a second annotator for a subset if feasible. Report raw agreement and an agreement statistic appropriate to the label design. Cohen's kappa should be used only when its assumptions are suitable; document prevalence effects and adjudication. Retain original and adjudicated labels separately.
+Use a second annotator on a subset if feasible. Report raw agreement and an agreement statistic appropriate to the label design. Cohen's kappa is not automatically appropriate for every multi-label/span setup; explain the selected statistic and prevalence limitations. Retain original and adjudicated labels separately.
 
-## 5. Data splitting and leakage prevention
-Split by whole contract, not random paragraph. Related amendments, duplicate versions, and repeated passages must be grouped. No contract may cross train, validation, or test splits. Target-domain test contracts and labels must not influence hyperparameter tuning, feature selection, prompt design, or threshold selection.
+## 5. Leakage prevention
+Split by whole contract, never by random paragraph. Group amendments, duplicate versions, and repeated agreements. No contract may cross train, validation, source test, or target test. The target test labels must not influence feature selection, prompt design, threshold selection, or hyperparameter tuning.
 
 ## 6. Model families
-- **Lexical baseline:** Transparent keyword and regular-expression rules with documented category dictionaries.
-- **Classical baseline:** TF-IDF features with logistic regression or another pre-specified classifier.
-- **Transformer:** A compact pretrained encoder fine-tuned only on source-domain training data.
-- **Optional LLM comparator:** A fixed zero-shot/few-shot protocol with recorded model version, prompt, and decoding settings. Include only if cost, privacy, access, and reproducibility constraints are acceptable.
+- **Lexical baseline:** Transparent category-specific keyword/regular-expression rules.
+- **Classical baseline:** TF-IDF with logistic regression, trained on source-domain examples.
+- **Transformer:** A compact pretrained encoder fine-tuned on source-domain data only.
+- **Optional LLM comparator:** A fixed, versioned inference protocol; include only if reproducibility, cost, and data-handling requirements are met.
 
-Use the same eligible text and task definition across model families. Record package versions, random seeds, model revisions, tokenization, truncation, hyperparameters, and compute environment.
+Use identical task definitions and eligible text across model families. Record model/tokenizer revisions, random seeds, preprocessing, truncation, hyperparameters, and compute environment.
 
-## 7. Metrics
-For each category, report precision, recall, F1, support, and confusion counts. If span extraction is evaluated, define exact-match and/or overlap criteria in advance and report span metrics separately from passage classification. Include class prevalence and number of distinct contracts represented.
+## 7. Evaluation
+For document-category presence, report per-category precision, recall, F1, support, and confusion counts. For passage retrieval or span extraction, define exact-match and/or overlap criteria in advance and report separate metrics. Include positive/negative prevalence and distinct-contract support.
 
-Report absolute percentage-point changes between domains and uncertainty intervals. Bootstrap at the contract level to respect within-contract dependence. Avoid accuracy as the sole metric for imbalanced labels. Report calibration only if probability outputs and the calibration method are documented.
+Report absolute percentage-point changes between source and target. Use contract-level bootstrap intervals where feasible to respect within-contract dependence. Do not rely on accuracy alone for imbalanced categories. Calibration metrics require probability outputs and a documented calibration procedure.
 
 ## 8. Error analysis
-Use a pre-defined taxonomy: missed clause, false positive, incorrect category, overly broad span, incomplete span, heading-only match, cross-reference dependency, and extraction/formatting failure. Code drafting characteristics independently from model predictions where possible. Treat industry and year subgroup analysis as exploratory when sample sizes are small.
+Use a pre-defined taxonomy: missed clause, false positive, wrong category, overly broad passage, incomplete passage, heading-only match, cross-reference dependency, and extraction/formatting failure. Code drafting features independently from model outputs where possible. Treat industry/year subgroup analysis as exploratory unless sample size supports stronger inference.
 
-## 9. Robustness extensions
-Cross-industry evaluation and controlled wording-variation tests may be considered after the primary design is stable. Synthetic perturbations must be reported separately from naturally occurring contracts and must not replace the main target-domain test.
+## 9. Robustness and sensitivity
+Potential extensions include cross-industry analysis, alternate category definitions, and controlled wording-variation tests. Synthetic perturbations must be clearly separated from naturally occurring SEC contracts. Conduct sensitivity analyses for document extraction failures and ambiguous annotations.
 
 ## 10. Reproducibility
-Maintain source manifests, dataset version notes, annotation versions, split assignments, experiment logs, environment files, seeds, and scripts for all reported tables and figures. Do not commit raw contracts, credentials, personal data, or local machine paths.
+Maintain dataset version notes, source manifests, annotation versions, split assignments, experiment logs, package versions, seeds, and scripts for every reported table/figure. Keep raw contract files and private source mappings out of the public repository unless redistribution permission is verified.
 
 ## 11. Limitations
-SEC-filed exhibits are not representative of every contract population. Differences between CUAD and the target sample may reflect source, industry, contract type, or selection as well as time. Annotation ambiguity, modest sample sizes, model-version changes, and text extraction errors may affect conclusions. Observational associations do not establish causality.
+SEC-filed exhibits are not representative of all contracts. CUAD and a later SEC sample may differ by contract type, issuer, industry, and selection process as well as filing date. Annotation ambiguity, small samples, extraction artifacts, and model-version changes can affect conclusions. Observational subgroup associations do not establish causality.
