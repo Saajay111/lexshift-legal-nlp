@@ -14,7 +14,9 @@ def _row(filename="contract.pdf"):
         row[f"{category}-Answer"] = "No"
     row["Governing Law"] = "['Governed by New York law.']"
     row["Governing Law-Answer"] = "New York"
-    row["Anti-Assignment"] = "['No assignment without consent.', 'A permitted transfer is allowed.']"
+    row["Anti-Assignment"] = (
+        "['No assignment without consent.', 'A permitted transfer is allowed.']"
+    )
     row["Anti-Assignment-Answer"] = "Yes"
     return row
 
