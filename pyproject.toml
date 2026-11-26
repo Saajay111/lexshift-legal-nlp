@@ -19,6 +19,7 @@ dependencies = [
 [project.scripts]
 lexshift-audit-cuad = "lexshift.cuad_audit:main"
 lexshift-convert-cuad = "lexshift.cuad_convert:main"
+lexshift-prepare-cuad = "lexshift.cuad_prepare:main"
 
 [project.optional-dependencies]
 dev = [
