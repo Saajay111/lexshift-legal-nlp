@@ -28,14 +28,14 @@ LEXSHIFT is an empirical study of **temporal and domain generalization in legal 
 |---|---|
 | Source domain | CUAD, subject to dataset-card, schema, and license verification |
 | Target domain | A documented sample of more recent SEC-filed material contracts |
-| Initial clause labels | Governing law, termination, limitation of liability, non-compete, anti-assignment |
+| Initial clause labels | Governing Law, Non-Compete, Anti-Assignment, Termination for Convenience, Cap on Liability (pilot-confirmed) |
 | Baselines | Lexical rules; TF-IDF + classical classifier |
 | Neural model | Compact pretrained transformer, subject to compute feasibility |
 | Optional comparator | Fixed zero-shot/few-shot LLM protocol, if reproducible and appropriate |
 | Primary analysis | Source-vs-target performance, category-level metrics, contract-level uncertainty |
 | Diagnostic analysis | Error taxonomy and exploratory drafting/industry/time slices |
 
-The clause list is provisional. Each category must be confirmed against the exact CUAD annotation schema and tested for consistent application to SEC documents before the main annotation phase.
+The clause list is provisional and uses CUAD-aligned category names. Confirm exact label availability, descriptions, answer conventions, and category support from the downloaded CUAD v1 release before freezing the task.
 
 ## Research safeguards
 
@@ -94,6 +94,8 @@ See [the project roadmap](docs/project_roadmap.md) for detailed gates.
 ## Documentation
 
 - [Research proposal](research/research_proposal.md)
+- [Initial literature review](research/literature_review.md)
+- [Target-domain sampling protocol](data/target_sampling_protocol.md)
 - [Research questions](research/research_questions.md)
 - [Methodology](research/methodology.md)
 - [Provisional hypotheses](research/hypotheses.md)
