@@ -1,6 +1,6 @@
 """Conservatively align CUAD evidence passages to the official full contract text.
 
-Only unique whitespace-normalized matches receive character offsets. Unmatched
+Only unique whitespace- and case-normalized matches receive character offsets. Unmatched
 or repeated passages are flagged for review; this module never invents spans
 or treats contract-level negatives as negative text passages.
 """
@@ -27,7 +27,7 @@ def _read_text(path: Path) -> str:
 
 
 def _normalized_with_offsets(text: str) -> tuple[str, list[int]]:
-    """Collapse whitespace while mapping each normalized character to source offset."""
+    """Collapse whitespace and casefold while mapping characters to source offsets."""
     chars: list[str] = []
     offsets: list[int] = []
     in_whitespace = False
@@ -38,8 +38,12 @@ def _normalized_with_offsets(text: str) -> tuple[str, list[int]]:
                 offsets.append(index)
             in_whitespace = True
         else:
-            chars.append(char)
-            offsets.append(index)
+            # Casefold both source and annotation text so capitalization-only
+            # differences do not create false negatives. Map expanded
+            # casefold characters back to their original source character.
+            for folded_char in char.casefold():
+                chars.append(folded_char)
+                offsets.append(index)
             in_whitespace = False
     if chars and chars[-1] == " ":
         chars.pop()
