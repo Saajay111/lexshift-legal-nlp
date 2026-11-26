@@ -22,6 +22,23 @@ def _sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+
+def _extract_pdf_text(pdf_path: Path) -> str:
+    """Extract PDF text with PyMuPDF, which is substantially faster on CUAD files."""
+    try:
+        import pymupdf
+    except ImportError as exc:
+        raise RuntimeError(
+            "Install PDF recovery support with pip install -e '.[data]' "
+            "(PyMuPDF is included in the data extra)."
+        ) from exc
+
+    with pymupdf.open(str(pdf_path)) as document:
+        return "\n\n".join(
+            page.get_text("text", sort=True) or "" for page in document
+        ).strip()
+
+
 def download_cuad_text(output_dir: str | Path) -> dict[str, Any]:
     """Download and verify the pinned official CUAD v1 TXT collection."""
     try:
@@ -80,23 +97,24 @@ def download_cuad_text(output_dir: str | Path) -> dict[str, Any]:
         path for path in pdf_files if path.stem.casefold() not in existing_names
     ]
     if missing_pdfs:
-        try:
-            from pypdf import PdfReader
-        except ImportError as exc:
-            raise RuntimeError(
-                "The Hugging Face TXT mirror contains only a subset of the "
-                "510 contracts. Install PDF recovery support with "
-                "pip install -e '.[data]' (pypdf is included in the data extra)."
-            ) from exc
-
-        for pdf_path in missing_pdfs:
+        for index, pdf_path in enumerate(missing_pdfs, start=1):
             relative_path = pdf_path.relative_to(pdf_dir).with_suffix(".txt")
             output_path = text_dir / relative_path
             output_path.parent.mkdir(parents=True, exist_ok=True)
-            reader = PdfReader(str(pdf_path))
-            extracted = "\n\n".join(
-                page.extract_text() or "" for page in reader.pages
-            ).strip()
+
+            # Preserve completed work if a Colab runtime is interrupted.
+            if output_path.is_file() and output_path.stat().st_size > 0:
+                files.append(output_path)
+                continue
+
+            try:
+                extracted = _extract_pdf_text(pdf_path)
+            except Exception as exc:
+                raise RuntimeError(
+                    f"PDF text extraction failed for {pdf_path.name} "
+                    f"({index}/{len(missing_pdfs)}). The downloader can be "
+                    "rerun safely; completed TXT recoveries are preserved."
+                ) from exc
             if not extracted:
                 raise ValueError(
                     f"PDF text extraction returned no text for {pdf_path.name}. "
