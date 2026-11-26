@@ -11,7 +11,6 @@ REQUIRED_ANNOTATION_COLUMNS = {
     "source_domain",
     "clause_category",
     "presence",
-    "passage_id",
     "annotator_id",
 }
 ALLOWED_CATEGORIES = {
@@ -28,10 +27,10 @@ def validate_annotation_frame(
     *,
     allowed_categories: Iterable[str] = ALLOWED_CATEGORIES,
 ) -> list[str]:
-    """Return validation errors without mutating the input frame.
+    """Return structural annotation errors without mutating the input.
 
-    The function intentionally checks structural integrity only. It does not
-    decide whether a legal annotation is substantively correct.
+    Absence labels do not require a passage ID. Positive labels must identify
+    at least one evidence passage. Each distinct passage is stored as a row.
     """
     errors: list[str] = []
     missing = sorted(REQUIRED_ANNOTATION_COLUMNS - set(frame.columns))
@@ -41,8 +40,9 @@ def validate_annotation_frame(
 
     if frame.empty:
         errors.append("Annotation table is empty.")
+        return errors
 
-    for column in ("contract_id", "source_domain", "clause_category", "passage_id"):
+    for column in ("contract_id", "source_domain", "clause_category", "annotator_id"):
         if frame[column].isna().any():
             errors.append(f"Column '{column}' contains missing values.")
 
@@ -51,8 +51,19 @@ def validate_annotation_frame(
     if unexpected:
         errors.append(f"Unexpected clause categories: {', '.join(unexpected)}")
 
-    if not frame.empty and frame["presence"].isna().any():
+    if frame["presence"].isna().any():
         errors.append("Column 'presence' contains missing values.")
+    elif not frame["presence"].isin([True, False, 0, 1]).all():
+        errors.append("Column 'presence' must contain boolean values.")
+
+    if "passage_id" in frame.columns:
+        positive_without_passage = frame["presence"].astype(bool) & frame["passage_id"].isna()
+        if positive_without_passage.any():
+            errors.append("Positive annotations must include a passage_id.")
+
+        negative_with_passage = (~frame["presence"].astype(bool)) & frame["passage_id"].notna()
+        if negative_with_passage.any():
+            errors.append("Negative annotations must not include a passage_id.")
 
     if {"start_char", "end_char"}.issubset(frame.columns):
         spans = frame[["start_char", "end_char"]].dropna()
@@ -61,6 +72,14 @@ def validate_annotation_frame(
         ]
         if not invalid.empty:
             errors.append("Character spans must satisfy 0 <= start_char < end_char.")
+
+        if "presence" in frame.columns:
+            missing_positive_spans = (
+                frame["presence"].astype(bool)
+                & (frame["start_char"].isna() | frame["end_char"].isna())
+            )
+            if missing_positive_spans.any():
+                errors.append("Positive annotations with span columns need both offsets.")
 
     duplicate_keys = ["contract_id", "clause_category", "passage_id", "annotator_id"]
     if set(duplicate_keys).issubset(frame.columns):
