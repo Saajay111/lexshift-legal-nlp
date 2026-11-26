@@ -9,11 +9,12 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import re
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
+
+CANONICAL_CONTRACT_COUNT = 510
 
 
 def _read_text(path: Path) -> str:
@@ -82,6 +83,22 @@ def align_passage(full_text: str, passage_text: str) -> dict[str, Any]:
             "start_char": start_char, "end_char": end_char, "occurrences": 1}
 
 
+def _canonical_text_files(text_root: Path) -> tuple[list[Path], str]:
+    """Prefer the complete category-organized CUAD set over flat mirror copies."""
+    all_files = sorted(text_root.rglob("*.txt"))
+    organized = [
+        path for path in all_files
+        if len(path.relative_to(text_root).parts) > 2
+    ]
+    names = [path.name.casefold() for path in organized]
+    if (
+        len(organized) == CANONICAL_CONTRACT_COUNT
+        and len(names) == len(set(names))
+    ):
+        return organized, "complete_category_organized_collection"
+    return all_files, "all_available_txt_files"
+
+
 def _sha256(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
@@ -106,13 +123,13 @@ def align_cuad_annotations(
     if missing:
         raise ValueError(f"Annotation CSV is missing columns: {', '.join(sorted(missing))}")
 
+    selected_files, selection_strategy = _canonical_text_files(text_root)
     txt_index: dict[str, list[Path]] = {}
-    for path in text_root.rglob("*.txt"):
+    for path in selected_files:
         txt_index.setdefault(path.stem.casefold(), []).append(path)
 
     contract_rows: list[dict[str, Any]] = []
     text_cache: dict[str, str] = {}
-    reference_map: dict[str, Path] = {}
     for contract_id, group in annotations.groupby("contract_id", sort=True):
         refs = group["source_reference"].dropna().astype(str).unique()
         if len(refs) != 1:
@@ -139,10 +156,8 @@ def align_cuad_annotations(
                 "full_text_sha256": None,
             })
             continue
-        text_path = candidates[0]
-        full_text = _read_text(text_path)
+        full_text = _read_text(candidates[0])
         text_cache[str(contract_id)] = full_text
-        reference_map[str(contract_id)] = text_path
         contract_rows.append({
             "contract_id": contract_id, "source_reference": source_reference,
             "status": "matched_full_text",
@@ -198,6 +213,8 @@ def align_cuad_annotations(
         "alignment_status": {
             str(k): int(v) for k, v in alignments["alignment_status"].value_counts().items()
         },
+        "full_text_files_considered": len(selected_files),
+        "full_text_selection_strategy": selection_strategy,
         "negative_rows_are_not_passage_examples": True,
         "raw_contract_text_written_to_output": False,
     }
