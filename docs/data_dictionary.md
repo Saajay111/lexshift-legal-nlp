@@ -14,8 +14,8 @@ Use stable project IDs rather than personal names. Keep raw contract text and do
 | industry | string | Broad industry code and coding source |
 | clause_category | string | One pre-specified category |
 | presence | boolean | Clause presence under the annotation protocol |
-| passage_id | string | Stable passage identifier |
-| start_char / end_char | integer | Character offsets in versioned normalized text |
+| passage_id | string, nullable for absence | Stable evidence-passage identifier; required for positive annotations and blank for a negative presence label |
+| start_char / end_char | integer, nullable for absence | Character offsets in versioned normalized text; required for positive span annotations |
 | annotator_id | string | Pseudonymous annotator code |
 | confidence | string | Defined confidence level |
 | needs_review | boolean | Whether review/adjudication is needed |
