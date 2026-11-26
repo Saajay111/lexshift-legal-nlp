@@ -9,7 +9,7 @@ Create consistent labels for five CUAD-aligned categories in SEC-filed material 
 For each contract and category, record whether the clause is present. For a positive label, create one row per supporting passage and include its passage ID and offsets. For a negative label, record one row with no passage ID or offsets. A provision may span multiple paragraphs. Store offsets against a versioned normalized text and retain the source document separately.
 
 ## 3. Exact CUAD category names and working definitions
-- **Governing Law:** A provision specifying the law governing interpretation or enforcement of the agreement.
+- **Governing Law:** A provision specifying the law governing interpretation or enforcement of the agreement. CUAD's answer for this category is a jurisdiction value, not a Yes/No answer; the primary detection task uses evidence-context presence, with any jurisdiction normalization evaluated separately.
 - **Non-Compete:** A provision restricting a party from specified competitive activities, as defined by CUAD's category guidance.
 - **Anti-Assignment:** A provision requiring consent or notice when the contract is assigned to a third party, following CUAD's category description.
 - **Termination for Convenience:** A provision allowing a party to terminate without cause by giving notice and allowing the specified waiting period to expire.
