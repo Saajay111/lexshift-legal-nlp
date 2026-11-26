@@ -181,15 +181,52 @@ def test_duplicate_filename_selects_unique_best_annotation_match(tmp_path: Path)
     )
 
 
-def test_duplicate_filename_tie_remains_ambiguous(tmp_path: Path):
+def test_identical_duplicate_files_collapse_to_one_candidate(tmp_path: Path):
+    text_root = tmp_path / "txt"
+    first_dir = text_root / "Part_I"
+    second_dir = text_root / "Part_II"
+    first_dir.mkdir(parents=True)
+    second_dir.mkdir(parents=True)
+    clause = "This Agreement is governed by Delaware law.\\n"
+    (first_dir / "ContractC.txt").write_text(clause, encoding="utf-8")
+    (second_dir / "ContractC.txt").write_text(clause.replace("\\n", "\\r\\n"), encoding="utf-8")
+
+    annotations = pd.DataFrame([{
+        "contract_id": "ContractC.pdf",
+        "source_reference": "ContractC.pdf",
+        "clause_category": "governing_law",
+        "presence": True,
+        "passage_id": "p1",
+        "passage_text": "This Agreement is governed by Delaware law.",
+    }])
+    csv_path = tmp_path / "annotations.csv"
+    annotations.to_csv(csv_path, index=False)
+
+    report = align_cuad_annotations(csv_path, text_root, tmp_path / "out")
+    manifest = pd.read_csv(tmp_path / "out" / "cuad_fulltext_manifest.csv")
+    aligned = pd.read_csv(tmp_path / "out" / "cuad_passage_alignment.csv")
+
+    assert report["contracts_with_full_text"] == 1
+    assert manifest.iloc[0]["candidate_file_count"] == 2
+    assert manifest.iloc[0]["distinct_content_count"] == 1
+    assert manifest.iloc[0]["selection_reason"] == "identical_content_duplicates_collapsed"
+    assert manifest.iloc[0]["status"] == "matched_full_text"
+    assert aligned.iloc[0]["alignment_status"] == "unique_whitespace_normalized_match"
+
+
+def test_distinct_duplicate_filename_tie_remains_ambiguous(tmp_path: Path):
     text_root = tmp_path / "txt"
     first_dir = text_root / "Part_I"
     second_dir = text_root / "Part_II"
     first_dir.mkdir(parents=True)
     second_dir.mkdir(parents=True)
     clause = "This Agreement is governed by Delaware law."
-    (first_dir / "ContractC.txt").write_text(clause, encoding="utf-8")
-    (second_dir / "ContractC.txt").write_text(clause, encoding="utf-8")
+    (first_dir / "ContractC.txt").write_text(
+        clause + " First version.", encoding="utf-8"
+    )
+    (second_dir / "ContractC.txt").write_text(
+        clause + " Second version.", encoding="utf-8"
+    )
 
     annotations = pd.DataFrame([{
         "contract_id": "ContractC.pdf",
@@ -207,5 +244,6 @@ def test_duplicate_filename_tie_remains_ambiguous(tmp_path: Path):
     aligned = pd.read_csv(tmp_path / "out" / "cuad_passage_alignment.csv")
 
     assert report["contracts_with_full_text"] == 0
+    assert manifest.iloc[0]["distinct_content_count"] == 2
     assert manifest.iloc[0]["status"] == "ambiguous_full_text_filename"
     assert aligned.iloc[0]["alignment_status"] == "ambiguous_full_text_filename"
