@@ -39,3 +39,28 @@ def test_download_rejects_incomplete_collection(monkeypatch, tmp_path: Path):
 
     with pytest.raises(ValueError, match="Expected 510 CUAD PDF files"):
         download_cuad_text(tmp_path / "download")
+
+
+def test_extract_pdf_text_uses_pymupdf(monkeypatch, tmp_path: Path):
+    from lexshift import cuad_download
+
+    class FakePage:
+        def get_text(self, mode, sort=False):
+            assert mode == "text"
+            assert sort is True
+            return "contract text"
+
+    class FakeDocument:
+        def __enter__(self):
+            return [FakePage(), FakePage()]
+
+        def __exit__(self, *args):
+            return False
+
+    fake_pymupdf = types.ModuleType("pymupdf")
+    fake_pymupdf.open = lambda path: FakeDocument()
+    monkeypatch.setitem(sys.modules, "pymupdf", fake_pymupdf)
+
+    assert cuad_download._extract_pdf_text(tmp_path / "sample.pdf") == (
+        "contract text\n\ncontract text"
+    )
