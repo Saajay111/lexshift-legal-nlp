@@ -16,6 +16,23 @@ def test_unique_match_recovers_offsets_across_whitespace():
     )
 
 
+def test_unique_match_is_case_insensitive_and_preserves_source_offsets():
+    text = "Intro\\nIN NO EVENT shall COMPANY be liable.\\nEnd"
+    passage = "in no event SHALL company be liable."
+    result = align_passage(text, passage)
+    assert result["status"] == "unique_whitespace_normalized_match"
+    assert text[result["start_char"]:result["end_char"]] == (
+        "IN NO EVENT shall COMPANY be liable."
+    )
+
+
+def test_casefold_expansion_maps_offsets_to_original_character():
+    text = "Intro STRASSE clause. End"
+    passage = "Straße clause."
+    result = align_passage(text, passage)
+    assert result["status"] == "unique_whitespace_normalized_match"
+    assert text[result["start_char"]:result["end_char"]] == "STRASSE clause."
+
 def test_repeated_passage_is_flagged_ambiguous():
     result = align_passage("Clause A. Clause A.", "Clause A.")
     assert result["status"] == "ambiguous_multiple_matches"
