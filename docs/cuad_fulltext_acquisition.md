@@ -2,7 +2,7 @@
 
 **Status:** Reproducible downloader implemented; run locally or in Colab before alignment.
 
-The pinned CUAD v1 release contains 510 canonical full-contract TXT files under `CUAD_v1/full_contract_txt`, organized into agreement-category subdirectories. This snapshot also contains a flat 200-file mirror at the `Part_I` and `Part_II` level. Those mirror files overlap with the category-organized collection and must not be counted as additional contracts. The downloader prefers the complete category-organized set when it contains exactly 510 files with unique basenames.
+The pinned CUAD v1 release contains 510 canonical full-contract TXT files under `CUAD_v1/full_contract_txt`, organized into agreement-category subdirectories. This snapshot also contains a flat 200-file mirror at the `Part_I` and `Part_II` level. Those mirror files overlap with the category-organized collection and must not be counted as additional contracts. The downloader prefers the complete category-organized set when it contains exactly 510 files with unique basenames. The alignment stage separately indexes all TXT candidates, including mirrors, because same-basename copies can differ in extracted content.
 
 - Dataset repository: https://huggingface.co/datasets/theatticusproject/cuad
 - Pinned revision: `a3c393f5d103fd0c516374e4fdff676c8176dcb1`
@@ -25,7 +25,7 @@ If the category-organized TXT collection is incomplete, the downloader can recov
 lexshift-align-cuad data/interim/cuad_annotations.csv data/raw/cuad_release/CUAD_v1/full_contract_txt data/interim/cuad_alignment
 ```
 
-Review `cuad_alignment_report.json` before building training examples. Only unique whitespace-normalized matches receive offsets. Missing or repeated matches remain flagged for review. Negative contract/category labels remain contract-level labels; this process does not fabricate negative passage annotations.
+Review `cuad_alignment_report.json` and `cuad_fulltext_manifest.csv` before building training examples. For duplicate basenames, the aligner scores each candidate against the contract's positive annotated passages and selects a file only when it has a unique highest exact/casefolded-whitespace match count. Ties with positive evidence remain `ambiguous_full_text_filename`; no-match ties are not silently resolved. The manifest records candidate counts, relative selected path, per-candidate match scores, selection reason, and selected text checksum. Only unique passage matches within the selected file receive offsets. Missing or repeated matches remain flagged for review. Negative contract/category labels remain contract-level labels; this process does not fabricate negative passage annotations.
 
 ## Data governance
 
