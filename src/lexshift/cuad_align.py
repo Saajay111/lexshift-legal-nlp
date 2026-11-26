@@ -1,6 +1,6 @@
 """Conservatively align CUAD evidence passages to the official full contract text.
 
-Only unique whitespace- and case-normalized matches receive character offsets. Unmatched
+Exact whitespace-normalized matches take priority. Case-insensitive matching is a fallback only. Unmatched
 or repeated passages are flagged for review; this module never invents spans
 or treats contract-level negatives as negative text passages.
 """
@@ -26,8 +26,10 @@ def _read_text(path: Path) -> str:
         return raw.decode("cp1252")
 
 
-def _normalized_with_offsets(text: str) -> tuple[str, list[int]]:
-    """Collapse whitespace and casefold while mapping characters to source offsets."""
+def _normalized_with_offsets(
+    text: str, *, casefold: bool = False
+) -> tuple[str, list[int]]:
+    """Collapse whitespace, optionally casefolding, while preserving source offsets."""
     chars: list[str] = []
     offsets: list[int] = []
     in_whitespace = False
@@ -38,11 +40,10 @@ def _normalized_with_offsets(text: str) -> tuple[str, list[int]]:
                 offsets.append(index)
             in_whitespace = True
         else:
-            # Casefold both source and annotation text so capitalization-only
-            # differences do not create false negatives. Map expanded
-            # casefold characters back to their original source character.
-            for folded_char in char.casefold():
-                chars.append(folded_char)
+            # Map any casefold expansion back to its original source character.
+            normalized_chars = char.casefold() if casefold else char
+            for normalized_char in normalized_chars:
+                chars.append(normalized_char)
                 offsets.append(index)
             in_whitespace = False
     if chars and chars[-1] == " ":
@@ -70,9 +71,23 @@ def align_passage(full_text: str, passage_text: str) -> dict[str, Any]:
     if not isinstance(passage_text, str) or not passage_text.strip():
         return {"status": "empty_passage", "start_char": None, "end_char": None,
                 "occurrences": 0}
+    # Prefer an exact case-sensitive match. Casefolding is only a fallback,
+    # so it cannot turn an otherwise unique exact match into an ambiguity.
     normalized_full, source_offsets = _normalized_with_offsets(full_text)
     normalized_passage, _ = _normalized_with_offsets(passage_text)
     hits = _all_occurrences(normalized_full, normalized_passage)
+    match_status = "unique_whitespace_normalized_match"
+
+    if not hits:
+        normalized_full, source_offsets = _normalized_with_offsets(
+            full_text, casefold=True
+        )
+        normalized_passage, _ = _normalized_with_offsets(
+            passage_text, casefold=True
+        )
+        hits = _all_occurrences(normalized_full, normalized_passage)
+        match_status = "unique_casefolded_whitespace_match"
+
     if not hits:
         return {"status": "not_found", "start_char": None, "end_char": None,
                 "occurrences": 0}
@@ -83,8 +98,8 @@ def align_passage(full_text: str, passage_text: str) -> dict[str, Any]:
     end_norm = start_norm + len(normalized_passage)
     start_char = source_offsets[start_norm]
     end_char = source_offsets[end_norm - 1] + 1
-    return {"status": "unique_whitespace_normalized_match",
-            "start_char": start_char, "end_char": end_char, "occurrences": 1}
+    return {"status": match_status, "start_char": start_char,
+            "end_char": end_char, "occurrences": 1}
 
 
 def _canonical_text_files(text_root: Path) -> tuple[list[Path], str]:
