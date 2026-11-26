@@ -17,7 +17,7 @@ pip install -e ".[data]"
 lexshift-download-cuad-text data/raw/cuad_release
 ```
 
-The command downloads only the TXT subtree, pins the exact revision, requires exactly 510 TXT files with unique basenames, and writes a manifest with each filename, byte size, and SHA-256 checksum. Raw contract text stays in the local destination and is never added to Git.
+The pinned Hugging Face snapshot currently exposes only 200 of the 510 TXT files. The downloader therefore retrieves the official PDF subtree as well, extracts text only for contracts whose TXT counterpart is absent, and requires exactly 510 PDF sources and 510 resulting text files with unique basenames. PDF extraction uses `pypdf`. The manifest records the original TXT count, number recovered from PDF, filename, byte size, and SHA-256 checksum. Raw contract text stays in the local destination and is never added to Git.
 
 ## Alignment
 
