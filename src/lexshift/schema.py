@@ -11,6 +11,7 @@ REQUIRED_ANNOTATION_COLUMNS = {
     "source_domain",
     "clause_category",
     "presence",
+    "passage_id",
     "annotator_id",
 }
 ALLOWED_CATEGORIES = {
