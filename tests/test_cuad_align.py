@@ -1,0 +1,63 @@
+from pathlib import Path
+
+import pandas as pd
+
+from lexshift.cuad_align import align_cuad_annotations, align_passage
+
+
+def test_unique_match_recovers_offsets_across_whitespace():
+    text = "Intro\n\nThis   Agreement\tshall be governed by law.\nEnd"
+    passage = "This Agreement shall be governed by law."
+    result = align_passage(text, passage)
+    assert result["status"] == "unique_whitespace_normalized_match"
+    assert text[result["start_char"]:result["end_char"]] == (
+        "This   Agreement\tshall be governed by law."
+    )
+
+
+def test_repeated_passage_is_flagged_ambiguous():
+    result = align_passage("Clause A. Clause A.", "Clause A.")
+    assert result["status"] == "ambiguous_multiple_matches"
+    assert result["start_char"] is None
+
+
+def test_unmatched_passage_is_not_fabricated():
+    result = align_passage("Entirely different text.", "Missing clause.")
+    assert result["status"] == "not_found"
+    assert result["end_char"] is None
+
+
+def test_negative_rows_are_not_passage_examples(tmp_path: Path):
+    txt_dir = tmp_path / "txt"
+    txt_dir.mkdir()
+    (txt_dir / "ContractA.txt").write_text(
+        "The agreement is governed by Delaware law.", encoding="utf-8"
+    )
+    annotations = pd.DataFrame([
+        {
+            "contract_id": "ContractA.pdf",
+            "source_reference": "ContractA.pdf",
+            "clause_category": "governing_law",
+            "presence": True,
+            "passage_id": "p1",
+            "passage_text": "The agreement is governed by Delaware law.",
+        },
+        {
+            "contract_id": "ContractA.pdf",
+            "source_reference": "ContractA.pdf",
+            "clause_category": "non_compete",
+            "presence": False,
+            "passage_id": None,
+            "passage_text": None,
+        },
+    ])
+    csv_path = tmp_path / "annotations.csv"
+    annotations.to_csv(csv_path, index=False)
+    report = align_cuad_annotations(csv_path, txt_dir, tmp_path / "out")
+    aligned = pd.read_csv(tmp_path / "out" / "cuad_passage_alignment.csv")
+    assert report["contracts_with_full_text"] == 1
+    assert aligned.iloc[0]["alignment_status"] == "unique_whitespace_normalized_match"
+    assert aligned.iloc[1]["alignment_status"] == (
+        "not_applicable_contract_level_negative"
+    )
+    assert not (tmp_path / "out" / "raw_contract_text.txt").exists()
