@@ -37,5 +37,5 @@ def test_download_rejects_incomplete_collection(monkeypatch, tmp_path: Path):
     fake_hub.snapshot_download = fake_snapshot_download
     monkeypatch.setitem(sys.modules, "huggingface_hub", fake_hub)
 
-    with pytest.raises(ValueError, match="Expected 510 CUAD TXT files"):
+    with pytest.raises(ValueError, match="Expected 510 CUAD PDF files"):
         download_cuad_text(tmp_path / "download")
