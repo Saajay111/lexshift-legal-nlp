@@ -33,6 +33,25 @@ def test_casefold_expansion_maps_offsets_to_original_character():
     assert result["status"] == "unique_whitespace_normalized_match"
     assert text[result["start_char"]:result["end_char"]] == "STRASSE clause."
 
+def test_exact_unique_match_takes_priority_over_casefold_duplicates():
+    text = "First clause. SECOND clause. second clause."
+    passage = "SECOND clause."
+    result = align_passage(text, passage)
+    assert result["status"] == "unique_whitespace_normalized_match"
+    assert text[result["start_char"]:result["end_char"]] == "SECOND clause."
+    assert result["occurrences"] == 1
+
+
+def test_casefold_fallback_recovers_capitalization_difference():
+    text = "Intro\\nIN NO EVENT shall COMPANY be liable.\\nEnd"
+    passage = "in no event SHALL company be liable."
+    result = align_passage(text, passage)
+    assert result["status"] == "unique_casefolded_whitespace_match"
+    assert text[result["start_char"]:result["end_char"]] == (
+        "IN NO EVENT shall COMPANY be liable."
+    )
+    assert result["occurrences"] == 1
+
 def test_repeated_passage_is_flagged_ambiguous():
     result = align_passage("Clause A. Clause A.", "Clause A.")
     assert result["status"] == "ambiguous_multiple_matches"
