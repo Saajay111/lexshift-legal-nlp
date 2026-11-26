@@ -21,8 +21,12 @@ lexshift-audit-cuad = "lexshift.cuad_audit:main"
 lexshift-convert-cuad = "lexshift.cuad_convert:main"
 lexshift-prepare-cuad = "lexshift.cuad_prepare:main"
 lexshift-align-cuad = "lexshift.cuad_align:main"
+lexshift-download-cuad-text = "lexshift.cuad_download:main"
 
 [project.optional-dependencies]
+data = [
+  "huggingface_hub>=0.23",
+]
 dev = [
   "pytest>=8.0",
   "ruff>=0.5",
