@@ -16,6 +16,9 @@ dependencies = [
   "scikit-learn>=1.4",
 ]
 
+[project.scripts]
+lexshift-audit-cuad = "lexshift.cuad_audit:main"
+
 [project.optional-dependencies]
 dev = [
   "pytest>=8.0",
