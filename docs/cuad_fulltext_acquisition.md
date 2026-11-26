@@ -2,7 +2,7 @@
 
 **Status:** Reproducible downloader implemented; run locally or in Colab before alignment.
 
-The official CUAD v1 release contains 510 full-contract TXT files in addition to the master-clauses CSV. The text files are grouped under `CUAD_v1/full_contract_txt` in the official Hugging Face dataset repository. LEXSHIFT pins the repository revision below so that upstream changes cannot silently alter the source snapshot.
+The pinned CUAD v1 release contains 510 canonical full-contract TXT files under `CUAD_v1/full_contract_txt`, organized into agreement-category subdirectories. This snapshot also contains a flat 200-file mirror at the `Part_I` and `Part_II` level. Those mirror files overlap with the category-organized collection and must not be counted as additional contracts. The downloader prefers the complete category-organized set when it contains exactly 510 files with unique basenames.
 
 - Dataset repository: https://huggingface.co/datasets/theatticusproject/cuad
 - Pinned revision: `a3c393f5d103fd0c516374e4fdff676c8176dcb1`
@@ -17,7 +17,7 @@ pip install -e ".[data]"
 lexshift-download-cuad-text data/raw/cuad_release
 ```
 
-The pinned Hugging Face snapshot currently exposes only 200 of the 510 TXT files. The downloader therefore retrieves the official PDF subtree as well, extracts text only for contracts whose TXT counterpart is absent, and requires exactly 510 PDF sources and 510 resulting text files with unique basenames. PDF extraction uses PyMuPDF for faster page-level text extraction. Completed recovered TXT files are preserved across interrupted Colab runs, so a retry does not repeat completed work. The manifest records the original TXT count, number recovered from PDF, filename, byte size, and SHA-256 checksum. Raw contract text stays in the local destination and is never added to Git.
+If the category-organized TXT collection is incomplete, the downloader can recover missing files from the PDF subtree using PyMuPDF. Completed recovered TXT files are preserved across interrupted Colab runs, so a retry does not repeat completed work. The downloader validates the final count and unique basenames, then writes a manifest with the pinned revision, selection strategy, discovered and selected TXT counts, number recovered from PDF, filename, byte size, and SHA-256 checksum. Raw contract text stays in the local destination and is never added to Git.
 
 ## Alignment
 
