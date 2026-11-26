@@ -11,6 +11,7 @@ CUAD_REPO_ID = "theatticusproject/cuad"
 CUAD_REVISION = "a3c393f5d103fd0c516374e4fdff676c8176dcb1"
 EXPECTED_CONTRACTS = 510
 TEXT_FOLDER_NAME = "full_contract_txt"
+PDF_FOLDER_NAME = "full_contract_pdf"
 
 
 def _sha256_file(path: Path) -> str:
@@ -37,7 +38,10 @@ def download_cuad_text(output_dir: str | Path) -> dict[str, Any]:
         repo_id=CUAD_REPO_ID,
         repo_type="dataset",
         revision=CUAD_REVISION,
-        allow_patterns=[f"CUAD_v1/{TEXT_FOLDER_NAME}/**"],
+        allow_patterns=[
+            f"CUAD_v1/{TEXT_FOLDER_NAME}/**",
+            f"CUAD_v1/{PDF_FOLDER_NAME}/**",
+        ],
         local_dir=str(destination),
     ))
 
@@ -60,10 +64,49 @@ def download_cuad_text(output_dir: str | Path) -> dict[str, Any]:
             )
         text_dir = candidates[0]
     files = sorted(text_dir.rglob("*.txt"))
+    existing_names = {path.name.casefold() for path in files}
+    pdf_dir = snapshot_path / "CUAD_v1" / PDF_FOLDER_NAME
+    pdf_files = sorted(pdf_dir.rglob("*.pdf")) if pdf_dir.is_dir() else []
+    if len(pdf_files) != EXPECTED_CONTRACTS:
+        raise ValueError(
+            f"Expected {EXPECTED_CONTRACTS} CUAD PDF files for recovery, "
+            f"found {len(pdf_files)}. Existing TXT count: {len(files)}."
+        )
+
+    missing_pdfs = [
+        path for path in pdf_files if path.stem.casefold() not in existing_names
+    ]
+    if missing_pdfs:
+        try:
+            from pypdf import PdfReader
+        except ImportError as exc:
+            raise RuntimeError(
+                "The Hugging Face TXT mirror contains only a subset of the "
+                "510 contracts. Install PDF recovery support with "
+                "pip install -e '.[data]' (pypdf is included in the data extra)."
+            ) from exc
+
+        for pdf_path in missing_pdfs:
+            relative_path = pdf_path.relative_to(pdf_dir).with_suffix(".txt")
+            output_path = text_dir / relative_path
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            reader = PdfReader(str(pdf_path))
+            extracted = "\n\n".join(
+                page.extract_text() or "" for page in reader.pages
+            ).strip()
+            if not extracted:
+                raise ValueError(
+                    f"PDF text extraction returned no text for {pdf_path.name}. "
+                    "Do not proceed with incomplete source text."
+                )
+            output_path.write_text(extracted, encoding="utf-8")
+            files.append(output_path)
+
+    files = sorted(files)
     if len(files) != EXPECTED_CONTRACTS:
         raise ValueError(
-            f"Expected {EXPECTED_CONTRACTS} CUAD TXT files, found {len(files)}. "
-            "Do not proceed to alignment with an incomplete download."
+            f"Expected {EXPECTED_CONTRACTS} CUAD text files after PDF recovery, "
+            f"found {len(files)}. Do not proceed to alignment."
         )
     names = [path.name.casefold() for path in files]
     if len(names) != len(set(names)):
@@ -76,6 +119,8 @@ def download_cuad_text(output_dir: str | Path) -> dict[str, Any]:
         "text_directory": str(text_dir),
         "expected_contracts": EXPECTED_CONTRACTS,
         "downloaded_contracts": len(files),
+        "original_txt_files": len(existing_names),
+        "recovered_from_pdf": len(missing_pdfs),
         "files": [
             {
                 "filename": path.name,
