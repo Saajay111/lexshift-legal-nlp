@@ -130,8 +130,82 @@ def test_alignment_ignores_flat_mirror_when_canonical_collection_is_complete(
     report = align_cuad_annotations(csv_path, text_root, tmp_path / "out")
     manifest = pd.read_csv(tmp_path / "out" / "cuad_fulltext_manifest.csv")
     assert report["contracts_with_full_text"] == 1
-    assert report["full_text_files_considered"] == 1
+    assert report["full_text_files_considered"] == 2
     assert report["full_text_selection_strategy"] == (
-        "complete_category_organized_collection"
+        "all_available_txt_files_scored_by_annotation_evidence"
+    )
+    assert manifest.iloc[0]["selected_text_path"].endswith(
+        "Part_III/Service/ContractA.txt"
     )
     assert manifest.iloc[0]["status"] == "matched_full_text"
+
+
+def test_duplicate_filename_selects_unique_best_annotation_match(tmp_path: Path):
+    text_root = tmp_path / "txt"
+    mirror_dir = text_root / "Part_I"
+    organized_dir = text_root / "Part_I" / "License_Agreements"
+    mirror_dir.mkdir(parents=True)
+    organized_dir.mkdir(parents=True)
+    (mirror_dir / "ContractB.txt").write_text(
+        "Different text from the annotated passage.", encoding="utf-8"
+    )
+    (organized_dir / "ContractB.txt").write_text(
+        "This Agreement is governed by Delaware law.", encoding="utf-8"
+    )
+
+    annotations = pd.DataFrame([{
+        "contract_id": "ContractB.pdf",
+        "source_reference": "ContractB.pdf",
+        "clause_category": "governing_law",
+        "presence": True,
+        "passage_id": "p1",
+        "passage_text": "This Agreement is governed by Delaware law.",
+    }])
+    csv_path = tmp_path / "annotations.csv"
+    annotations.to_csv(csv_path, index=False)
+
+    report = align_cuad_annotations(csv_path, text_root, tmp_path / "out")
+    manifest = pd.read_csv(tmp_path / "out" / "cuad_fulltext_manifest.csv")
+    aligned = pd.read_csv(tmp_path / "out" / "cuad_passage_alignment.csv")
+
+    assert report["contracts_with_full_text"] == 1
+    assert manifest.iloc[0]["candidate_file_count"] == 2
+    assert manifest.iloc[0]["selection_reason"] == (
+        "unique_highest_annotation_match_count"
+    )
+    assert manifest.iloc[0]["selected_text_path"].endswith(
+        "License_Agreements/ContractB.txt"
+    )
+    assert aligned.iloc[0]["alignment_status"] == (
+        "unique_whitespace_normalized_match"
+    )
+
+
+def test_duplicate_filename_tie_remains_ambiguous(tmp_path: Path):
+    text_root = tmp_path / "txt"
+    first_dir = text_root / "Part_I"
+    second_dir = text_root / "Part_II"
+    first_dir.mkdir(parents=True)
+    second_dir.mkdir(parents=True)
+    clause = "This Agreement is governed by Delaware law."
+    (first_dir / "ContractC.txt").write_text(clause, encoding="utf-8")
+    (second_dir / "ContractC.txt").write_text(clause, encoding="utf-8")
+
+    annotations = pd.DataFrame([{
+        "contract_id": "ContractC.pdf",
+        "source_reference": "ContractC.pdf",
+        "clause_category": "governing_law",
+        "presence": True,
+        "passage_id": "p1",
+        "passage_text": clause,
+    }])
+    csv_path = tmp_path / "annotations.csv"
+    annotations.to_csv(csv_path, index=False)
+
+    report = align_cuad_annotations(csv_path, text_root, tmp_path / "out")
+    manifest = pd.read_csv(tmp_path / "out" / "cuad_fulltext_manifest.csv")
+    aligned = pd.read_csv(tmp_path / "out" / "cuad_passage_alignment.csv")
+
+    assert report["contracts_with_full_text"] == 0
+    assert manifest.iloc[0]["status"] == "ambiguous_full_text_filename"
+    assert aligned.iloc[0]["alignment_status"] == "ambiguous_full_text_filename"
