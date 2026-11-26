@@ -66,7 +66,10 @@ def download_cuad_text(output_dir: str | Path) -> dict[str, Any]:
     files = sorted(text_dir.rglob("*.txt"))
     existing_names = {path.name.casefold() for path in files}
     pdf_dir = snapshot_path / "CUAD_v1" / PDF_FOLDER_NAME
-    pdf_files = sorted(pdf_dir.rglob("*.pdf")) if pdf_dir.is_dir() else []
+    pdf_files = sorted(
+        path for path in pdf_dir.rglob("*")
+        if path.is_file() and path.suffix.casefold() == ".pdf"
+    ) if pdf_dir.is_dir() else []
     if len(pdf_files) != EXPECTED_CONTRACTS:
         raise ValueError(
             f"Expected {EXPECTED_CONTRACTS} CUAD PDF files for recovery, "
