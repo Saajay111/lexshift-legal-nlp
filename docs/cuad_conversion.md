@@ -23,7 +23,7 @@ Five categories are mapped without broadening their definitions:
 - The four Yes/No categories are checked for consistency between the source answer and passage availability. A mismatch stops conversion rather than silently correcting the source.
 - The original filename is retained as both `contract_id` and `source_reference`.
 - CUAD does not provide document date or industry in this master CSV; these fields remain missing.
-- Character offsets are not fabricated. They remain missing until passages are aligned to a versioned full-text representation.
+- Character offsets are not emitted by this import because the master CSV supplies evidence passages but not offsets aligned to a versioned full-text representation. Passage-level evidence and span-offset annotation are kept distinct.
 - Multiple passages for one contract/category become separate rows with deterministic passage IDs.
 - The converter never writes source contracts or raw source CSVs into the repository.
 
