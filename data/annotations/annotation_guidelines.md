@@ -6,7 +6,7 @@
 Create consistent labels for five CUAD-aligned categories in SEC-filed material contracts. These are research definitions, not legal advice.
 
 ## 2. Annotation unit
-For each contract and category, record whether the clause is present and attach the supporting passage or passages. A provision may span multiple paragraphs. Store offsets against a versioned normalized text and retain the source document separately.
+For each contract and category, record whether the clause is present. For a positive label, create one row per supporting passage and include its passage ID and offsets. For a negative label, record one row with no passage ID or offsets. A provision may span multiple paragraphs. Store offsets against a versioned normalized text and retain the source document separately.
 
 ## 3. Exact CUAD category names and working definitions
 - **Governing Law:** A provision specifying the law governing interpretation or enforcement of the agreement.
