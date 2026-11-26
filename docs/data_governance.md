@@ -4,7 +4,7 @@
 The project evaluates text-processing systems for research. It does not provide legal advice, assess the enforceability of clauses, or make decisions about parties or contracts.
 
 ## Source provenance
-Record the origin, retrieval date, version, and applicable terms for every dataset and document collection. CUAD and SEC EDGAR materials are distinct sources; do not assume their licenses or reuse conditions are interchangeable.
+Record the origin, retrieval date, version, and applicable terms for every dataset and document collection. CUAD and SEC EDGAR materials are distinct sources; do not assume their licenses or reuse conditions are interchangeable. The CUAD dataset release is identified as CC BY 4.0, but the dataset documentation expressly makes no representation or warranty about the license status of the underlying contracts. Treat source contracts and extracted contract text as separately rights-reviewed material.
 
 ## Public repository policy
 Do not commit:
