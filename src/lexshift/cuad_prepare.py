@@ -28,6 +28,20 @@ CATEGORY_ORDER = [
 
 def build_contract_labels(annotations: pd.DataFrame) -> pd.DataFrame:
     """Aggregate passage rows into exactly one binary label per contract/category."""
+    # Report contradictory contract/category labels before row-level checks.
+    # This makes the semantic conflict the primary diagnostic even when the
+    # deliberately conflicting row also violates passage-level constraints.
+    pair_columns = {"contract_id", "clause_category", "presence"}
+    if pair_columns.issubset(annotations.columns):
+        for (contract_id, category), group in annotations.groupby(
+            ["contract_id", "clause_category"], sort=True, dropna=False
+        ):
+            positive = group["presence"].astype(bool)
+            if positive.any() and (~positive).any():
+                raise ValueError(
+                    f"Mixed positive and negative rows for {contract_id}/{category}"
+                )
+
     require_valid_annotations(annotations)
     missing = {"passage_text", "source_answer"} - set(annotations.columns)
     if missing:
