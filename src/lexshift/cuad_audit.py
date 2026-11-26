@@ -71,3 +71,20 @@ def audit_cuad_csv(path: str | Path) -> dict[str, Any]:
         raise FileNotFoundError(f"CUAD CSV not found: {csv_path}")
     frame = pd.read_csv(csv_path)
     return audit_cuad_frame(frame)
+
+
+def main() -> None:
+    """Command-line entry point for auditing a downloaded CUAD master CSV."""
+    import argparse
+    import json
+
+    parser = argparse.ArgumentParser(
+        description="Inspect the schema and expected category columns in CUAD's master CSV."
+    )
+    parser.add_argument("csv_path", help="Path to the downloaded CUAD master-clauses CSV.")
+    args = parser.parse_args()
+    print(json.dumps(audit_cuad_csv(args.csv_path), indent=2))
+
+
+if __name__ == "__main__":
+    main()
