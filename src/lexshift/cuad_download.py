@@ -22,7 +22,6 @@ def _sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-
 def _extract_pdf_text(pdf_path: Path) -> str:
     """Extract PDF text with PyMuPDF, which is substantially faster on CUAD files."""
     try:
@@ -80,23 +79,40 @@ def download_cuad_text(output_dir: str | Path) -> dict[str, Any]:
                 f"found {len(candidates)}."
             )
         text_dir = candidates[0]
-    files = sorted(text_dir.rglob("*.txt"))
-    existing_names = {path.name.casefold() for path in files}
-    pdf_dir = snapshot_path / "CUAD_v1" / PDF_FOLDER_NAME
-    pdf_files = sorted(
-        path for path in pdf_dir.rglob("*")
-        if path.is_file() and path.suffix.casefold() == ".pdf"
-    ) if pdf_dir.is_dir() else []
-    if len(pdf_files) != EXPECTED_CONTRACTS:
-        raise ValueError(
-            f"Expected {EXPECTED_CONTRACTS} CUAD PDF files for recovery, "
-            f"found {len(pdf_files)}. Existing TXT count: {len(files)}."
-        )
 
-    missing_pdfs = [
-        path for path in pdf_files if path.stem.casefold() not in existing_names
+    all_txt_files = sorted(text_dir.rglob("*.txt"))
+    # This CUAD revision contains a flat 100-file mirror in Part_I and
+    # Part_II alongside the canonical 510 files nested by agreement category.
+    # Prefer the category-organized collection when it is complete, avoiding
+    # counting the mirror copies as additional contracts.
+    organized_files = [
+        path for path in all_txt_files
+        if len(path.relative_to(text_dir).parts) > 2
     ]
-    if missing_pdfs:
+    organized_names = [path.name.casefold() for path in organized_files]
+    has_complete_organized_collection = (
+        len(organized_files) == EXPECTED_CONTRACTS
+        and len(organized_names) == len(set(organized_names))
+    )
+
+    if has_complete_organized_collection:
+        files = organized_files
+        original_txt_count = len(files)
+        missing_pdfs: list[Path] = []
+    else:
+        files = all_txt_files
+        original_txt_count = len(files)
+        existing_names = {path.name.casefold() for path in files}
+        pdf_dir = snapshot_path / "CUAD_v1" / PDF_FOLDER_NAME
+        pdf_files = sorted(
+            path for path in pdf_dir.rglob("*")
+            if path.is_file() and path.suffix.casefold() == ".pdf"
+        ) if pdf_dir.is_dir() else []
+        missing_pdfs = [
+            path for path in pdf_files
+            if path.stem.casefold() not in existing_names
+        ]
+
         for index, pdf_path in enumerate(missing_pdfs, start=1):
             relative_path = pdf_path.relative_to(pdf_dir).with_suffix(".txt")
             output_path = text_dir / relative_path
@@ -126,8 +142,9 @@ def download_cuad_text(output_dir: str | Path) -> dict[str, Any]:
     files = sorted(files)
     if len(files) != EXPECTED_CONTRACTS:
         raise ValueError(
-            f"Expected {EXPECTED_CONTRACTS} CUAD text files after PDF recovery, "
-            f"found {len(files)}. Do not proceed to alignment."
+            f"Expected {EXPECTED_CONTRACTS} CUAD text files, found {len(files)} "
+            f"(discovered {len(all_txt_files)} TXT files before recovery). "
+            "Do not proceed to alignment."
         )
     names = [path.name.casefold() for path in files]
     if len(names) != len(set(names)):
@@ -140,8 +157,13 @@ def download_cuad_text(output_dir: str | Path) -> dict[str, Any]:
         "text_directory": str(text_dir),
         "expected_contracts": EXPECTED_CONTRACTS,
         "downloaded_contracts": len(files),
-        "original_txt_files": len(existing_names),
+        "discovered_txt_files": len(all_txt_files),
+        "original_txt_files_selected": original_txt_count,
         "recovered_from_pdf": len(missing_pdfs),
+        "selection_strategy": (
+            "complete_category_organized_collection"
+            if has_complete_organized_collection else "txt_plus_pdf_recovery"
+        ),
         "files": [
             {
                 "filename": path.name,
