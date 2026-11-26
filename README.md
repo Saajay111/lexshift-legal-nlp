@@ -102,6 +102,7 @@ See [the project roadmap](docs/project_roadmap.md) for detailed gates.
 - [Limitations and threats to validity](research/limitations.md)
 - [Annotation guidelines](data/annotations/annotation_guidelines.md)
 - [Data dictionary](docs/data_dictionary.md)
+- [CUAD dataset intake guide](docs/data_intake.md)
 - [Reproducibility protocol](docs/reproducibility.md)
 - [Research ethics and data governance](docs/data_governance.md)
 
