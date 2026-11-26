@@ -8,7 +8,7 @@ def valid_frame() -> pd.DataFrame:
         {
             "contract_id": ["C001"],
             "source_domain": ["SEC"],
-            "clause_category": ["termination"],
+            "clause_category": ["governing_law"],
             "presence": [True],
             "passage_id": ["P001"],
             "annotator_id": ["A1"],
