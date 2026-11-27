@@ -1,7 +1,8 @@
 """Conservatively align CUAD evidence passages to the official full contract text.
 
-Exact whitespace-normalized matches take priority. Case-insensitive matching is a fallback only. Unmatched
-or repeated passages are flagged for review; this module never invents spans
+Exact whitespace-normalized matches take priority. Case-insensitive matching is a
+fallback only. Unmatched or repeated passages are flagged for review; this module
+never invents spans
 or treats contract-level negatives as negative text passages.
 """
 from __future__ import annotations
