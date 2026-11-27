@@ -1,12 +1,12 @@
 # CUAD Full-Text Acquisition
 
-**Status:** Reproducible downloader implemented; run locally or in Colab before alignment.
+**Status:** Downloader updated for the verified pinned Hugging Face repository structure; validate in Colab before alignment.
 
-The pinned CUAD v1 release contains 510 canonical full-contract TXT files under `CUAD_v1/full_contract_txt`, organized into agreement-category subdirectories. This snapshot also contains a flat 200-file mirror at the `Part_I` and `Part_II` level. Those mirror files overlap with the category-organized collection and must not be counted as additional contracts. The downloader prefers the complete category-organized set when it contains exactly 510 files with unique basenames. The alignment stage separately indexes all TXT candidates, including mirrors, because same-basename copies can differ in extracted content.
+The pinned CUAD v1 revision contains 510 canonical contract PDFs with unique basenames, plus 200 flat TXT mirrors (100 in `Part_I` and 100 in `Part_II`). The verified inventory shows 196 mirror basenames match PDFs and 314 PDFs have no corresponding flat TXT copy. The downloader now uses the canonical PDF paths as the contract inventory, copies each matching TXT mirror into that PDF's category-relative path, and extracts text from the remaining PDFs.
 
 - Dataset repository: https://huggingface.co/datasets/theatticusproject/cuad
 - Pinned revision: `a3c393f5d103fd0c516374e4fdff676c8176dcb1`
-- Dataset documentation: https://huggingface.co/datasets/theatticusproject/cuad/blob/main/CUAD_v1/CUAD%20v1%20ReadMe%20_%20Datasheet/CUAD_v1_README.txt
+- Dataset documentation: https://huggingface.co/datasets/theatticusproject/cuad/blob/main/CUAD%20v1%20ReadMe%20_%20Datasheet/CUAD_v1_README.txt
 
 ## Download
 
@@ -17,15 +17,19 @@ pip install -e ".[data]"
 lexshift-download-cuad-text data/raw/cuad_release
 ```
 
-If the category-organized TXT collection is incomplete, the downloader can recover missing files from the PDF subtree using PyMuPDF. Completed recovered TXT files are preserved across interrupted Colab runs, so a retry does not repeat completed work. The downloader validates the final count and unique basenames, then writes a manifest with the pinned revision, selection strategy, discovered and selected TXT counts, number recovered from PDF, filename, byte size, and SHA-256 checksum. Raw contract text stays in the local destination and is never added to Git.
+The downloader validates exactly 510 unique PDF basenames and expects the verified 196 TXT-to-PDF basename matches. Each TXT is written under the same relative category path as its canonical PDF. PDF extraction uses PyMuPDF without the additional layout-sorting pass that caused slow execution in the previous attempt. Nonempty extracted files are preserved across interrupted runs; matching official TXT mirrors are recopied from the pinned source to keep them authoritative.
+
+A manifest is written only after all 510 category-mapped TXT files are present and nonempty. It records the pinned revision, counts copied from TXT and recovered from PDF, relative paths, byte sizes, and SHA-256 checksums. Raw contract text stays in the local destination and is never added to Git.
 
 ## Alignment
+
+After successful acquisition, review the manifest and run:
 
 ```bash
 lexshift-align-cuad data/interim/cuad_annotations.csv data/raw/cuad_release/CUAD_v1/full_contract_txt data/interim/cuad_alignment
 ```
 
-Review `cuad_alignment_report.json` and `cuad_fulltext_manifest.csv` before building training examples. For duplicate basenames, the aligner first collapses candidates with identical decoded text after normalizing only newline conventions (CRLF/CR to LF). It preserves every candidate path in the score audit, but scores each distinct text only once. If all copies have equivalent content, one deterministic representative is selected. If contents differ, a candidate is selected only when it has a unique highest exact/casefolded-whitespace match count against the contract's positive annotated passages. Ties between distinct contents remain `ambiguous_full_text_filename`; no-match ties are not silently resolved. The manifest records raw candidate count, distinct-content count, relative selected path, per-path match scores, selection reason, and selected text checksum. Only unique passage matches within the selected file receive offsets. Missing or repeated matches remain flagged for review. Negative contract/category labels remain contract-level labels; this process does not fabricate negative passage annotations.
+Review `cuad_alignment_report.json` and `cuad_fulltext_manifest.csv` before building training examples. For duplicate basenames in candidate collections, the aligner first collapses candidates with identical decoded text after normalizing only newline conventions (CRLF/CR to LF). It preserves every candidate path in the score audit, but scores each distinct text only once. If all copies have equivalent content, one deterministic representative is selected. If contents differ, a candidate is selected only when it has a unique highest exact/casefolded-whitespace match count against the contract's positive annotated passages. Ties between distinct contents remain ambiguous; no-match ties are not silently resolved. Missing or repeated matches remain flagged for review. Negative contract/category labels remain contract-level labels; this process does not fabricate negative passage annotations.
 
 ## Data governance
 
