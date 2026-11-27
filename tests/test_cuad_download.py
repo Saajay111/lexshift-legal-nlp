@@ -110,5 +110,5 @@ def test_rejects_duplicate_pdf_basenames(monkeypatch, tmp_path: Path):
     from lexshift import cuad_download
 
     monkeypatch.setattr(cuad_download, "EXPECTED_CONTRACTS", 2)
-    with pytest.raises(ValueError, match="Expected 2 official CUAD PDFs"):
+    with pytest.raises(ValueError, match="Duplicate PDF basenames"):
         download_cuad_text(tmp_path / "download")
