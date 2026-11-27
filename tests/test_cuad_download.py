@@ -1,4 +1,5 @@
 from pathlib import Path
+import json
 import sys
 import types
 
@@ -8,15 +9,13 @@ from lexshift.cuad_download import download_cuad_text
 
 
 def _mock_snapshot(monkeypatch, snapshot_path: Path):
-    from lexshift import cuad_download
-
     def fake_snapshot_download(**kwargs):
+        assert kwargs["revision"] == "a3c393f5d103fd0c516374e4fdff676c8176dcb1"
         return str(snapshot_path)
 
     fake_hub = types.ModuleType("huggingface_hub")
     fake_hub.snapshot_download = fake_snapshot_download
     monkeypatch.setitem(sys.modules, "huggingface_hub", fake_hub)
-    return cuad_download
 
 
 def test_download_requires_optional_dependency(monkeypatch, tmp_path: Path):
@@ -34,79 +33,82 @@ def test_download_requires_optional_dependency(monkeypatch, tmp_path: Path):
         download_cuad_text(tmp_path / "download")
 
 
-def test_download_rejects_incomplete_collection(monkeypatch, tmp_path: Path):
-    from lexshift import cuad_download
-
-    text_dir = tmp_path / "snapshot" / "CUAD_v1" / "full_contract_txt"
-    text_dir.mkdir(parents=True)
-    (text_dir / "Part_I").mkdir()
-    (text_dir / "Part_I" / "one.txt").write_text("sample", encoding="utf-8")
-
-    _mock_snapshot(monkeypatch, tmp_path / "snapshot")
-    monkeypatch.setattr(cuad_download, "EXPECTED_CONTRACTS", 510)
-
-    with pytest.raises(ValueError, match="Expected 510 CUAD text files"):
-        download_cuad_text(tmp_path / "download")
-
-
-def test_download_prefers_complete_organized_collection(
+def test_reconstructs_510_category_mapped_texts_from_196_mirrors_and_314_pdfs(
     monkeypatch, tmp_path: Path
 ):
     snapshot = tmp_path / "snapshot"
     text_dir = snapshot / "CUAD_v1" / "full_contract_txt"
-    organized_dir = text_dir / "Part_III" / "Service"
-    organized_dir.mkdir(parents=True)
+    pdf_dir = snapshot / "CUAD_v1" / "full_contract_pdf"
 
-    # Simulate the 200-file flat mirror plus the canonical 510-file collection.
-    (text_dir / "Part_I").mkdir()
-    (text_dir / "Part_II").mkdir()
-    for index in range(100):
-        (text_dir / "Part_I" / f"mirror_i_{index}.txt").write_text(
-            "mirror", encoding="utf-8"
-        )
-        (text_dir / "Part_II" / f"mirror_ii_{index}.txt").write_text(
-            "mirror", encoding="utf-8"
-        )
+    # Build 510 unique canonical PDFs across category directories.
     for index in range(510):
-        (organized_dir / f"contract_{index}.txt").write_text(
-            f"contract {index}", encoding="utf-8"
-        )
+        category = "Service" if index % 2 == 0 else "Maintenance"
+        part = "Part_I" if index < 170 else ("Part_II" if index < 340 else "Part_III")
+        pdf_path = pdf_dir / part / category / f"contract_{index:03}.pdf"
+        pdf_path.parent.mkdir(parents=True, exist_ok=True)
+        pdf_path.write_bytes(b"%PDF-test")
 
-    cuad_download = _mock_snapshot(monkeypatch, snapshot)
-    monkeypatch.setattr(cuad_download, "EXPECTED_CONTRACTS", 510)
+    # The pinned release has 100 flat TXT mirrors in each of Part_I/Part_II;
+    # 196 of their basenames correspond to official PDFs.
+    for index in range(196):
+        part = "Part_I" if index < 100 else "Part_II"
+        mirror = text_dir / part / f"contract_{index:03}.txt"
+        mirror.parent.mkdir(parents=True, exist_ok=True)
+        mirror.write_text(f"official mirror {index}", encoding="utf-8")
 
-    report = download_cuad_text(tmp_path / "download")
-    assert report["contracts"] == 510
+    _mock_snapshot(monkeypatch, snapshot)
 
-    import json
-
-    manifest = json.loads(Path(report["manifest"]).read_text(encoding="utf-8"))
-    assert manifest["discovered_txt_files"] == 710
-    assert manifest["original_txt_files_selected"] == 510
-    assert manifest["recovered_from_pdf"] == 0
-    assert manifest["selection_strategy"] == "complete_category_organized_collection"
-
-
-def test_extract_pdf_text_uses_pymupdf(monkeypatch, tmp_path: Path):
     from lexshift import cuad_download
 
-    class FakePage:
-        def get_text(self, mode, sort=False):
-            assert mode == "text"
-            assert sort is True
-            return "contract text"
+    calls = []
 
-    class FakeDocument:
-        def __enter__(self):
-            return [FakePage(), FakePage()]
+    def fake_extract(path):
+        calls.append(path.name)
+        return f"extracted {path.stem}"
 
-        def __exit__(self, *args):
-            return False
+    monkeypatch.setattr(cuad_download, "_extract_pdf_text", fake_extract)
 
-    fake_pymupdf = types.ModuleType("pymupdf")
-    fake_pymupdf.open = lambda path: FakeDocument()
-    monkeypatch.setitem(sys.modules, "pymupdf", fake_pymupdf)
+    report = download_cuad_text(tmp_path / "download")
 
-    assert cuad_download._extract_pdf_text(tmp_path / "sample.pdf") == (
-        "contract text\n\ncontract text"
+    assert report["contracts"] == 510
+    assert report["copied_from_txt"] == 196
+    assert report["recovered_from_pdf"] == 314
+    assert len(calls) == 314
+
+    manifest = json.loads(Path(report["manifest"]).read_text(encoding="utf-8"))
+    assert manifest["official_pdf_files"] == 510
+    assert manifest["flat_txt_mirrors_matched_to_pdfs"] == 196
+    assert manifest["recovered_from_pdf"] == 314
+    assert manifest["selection_strategy"] == (
+        "canonical_pdf_paths_with_flat_txt_mirror_reuse"
     )
+
+    # Every output mirrors the canonical PDF's category-relative path.
+    for index in range(510):
+        category = "Service" if index % 2 == 0 else "Maintenance"
+        part = "Part_I" if index < 170 else ("Part_II" if index < 340 else "Part_III")
+        output = text_dir / part / category / f"contract_{index:03}.txt"
+        assert output.is_file()
+        if index < 196:
+            assert output.read_text(encoding="utf-8") == f"official mirror {index}"
+        else:
+            assert output.read_text(encoding="utf-8") == f"extracted contract_{index:03}"
+
+
+def test_rejects_duplicate_pdf_basenames(monkeypatch, tmp_path: Path):
+    snapshot = tmp_path / "snapshot"
+    text_dir = snapshot / "CUAD_v1" / "full_contract_txt"
+    pdf_dir = snapshot / "CUAD_v1" / "full_contract_pdf"
+    for folder in ("A", "B"):
+        path = pdf_dir / folder / "same.pdf"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"%PDF-test")
+    text_dir.mkdir(parents=True)
+
+    _mock_snapshot(monkeypatch, snapshot)
+
+    from lexshift import cuad_download
+
+    monkeypatch.setattr(cuad_download, "EXPECTED_CONTRACTS", 2)
+    with pytest.raises(ValueError, match="Expected 2 official CUAD PDFs"):
+        download_cuad_text(tmp_path / "download")
